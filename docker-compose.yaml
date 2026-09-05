@@ -21,6 +21,11 @@ services:
     depends_on:
       - mongo  # Garante que o MongoDB esteja rodando antes de iniciar o backend
 
+    environment:
+      - MONGO_URI=mongodb://root:rootpassword@mongo:27017/todo-app?authSource=admin
+     
+
+
   mongo:
     build:
       context: ./banco-de-dados  # Diretório do backend

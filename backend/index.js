@@ -9,12 +9,12 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// String de Conexão com authSource=admin
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://root:rootpassword@127.0.0.1:27017/todo-app?authSource=admin';
+// String de Conexão
+const MONGO_URI = process.env.MONGO_URI;
 
 // Função de Conexão com Re-tentativa Automática
 const connectWithRetry = () => {
-  console.log('Tentando conectar ao MongoDB...');
+  console.log(`Tentando conectar ao MongoDB... :)`);
   mongoose.connect(MONGO_URI)
     .then(() => {
       console.log('Conectado ao MongoDB com sucesso!');
@@ -35,7 +35,12 @@ const TodoSchema = new mongoose.Schema({
 
 const Todo = mongoose.model('Todo', TodoSchema);
 
-// Rotas
+// Rota Raiz (Ideal para o Health Check do Load Balancer na AWS)
+app.get('/', (req, res) => {
+  res.status(200).send('API Todo está rodando!');
+});
+
+// Listar todas as tarefas
 app.get('/todos', async (req, res) => {
   try {
     const todos = await Todo.find();
@@ -45,6 +50,7 @@ app.get('/todos', async (req, res) => {
   }
 });
 
+// Criar nova tarefa
 app.post('/todos', async (req, res) => {
   const { text } = req.body;
   if (!text) {
@@ -54,6 +60,32 @@ app.post('/todos', async (req, res) => {
   try {
     const newTodo = await Todo.create({ text, completed: false });
     res.status(201).json(newTodo);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Atualizar tarefa (Resolve o erro 404 do PATCH)
+app.patch('/todos/:id', async (req, res) => {
+  try {
+    const todo = await Todo.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!todo) {
+      return res.status(404).json({ message: 'Tarefa não encontrada' });
+    }
+    res.json(todo);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Deletar tarefa
+app.delete('/todos/:id', async (req, res) => {
+  try {
+    const todo = await Todo.findByIdAndDelete(req.params.id);
+    if (!todo) {
+      return res.status(404).json({ message: 'Tarefa não encontrada' });
+    }
+    res.json({ message: 'Tarefa deletada com sucesso' });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
